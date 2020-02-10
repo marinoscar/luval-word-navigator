@@ -16,6 +16,8 @@ namespace luval.word.navigator.terminal
         public string Country { get; set; }
         public int StepCount { get; set; }
         public string ExceptionHandling { get; set; }
+        public string SAPTransactionCodes { get; set; }
+        public string SAPVariants { get; set; }
 
     }
 }

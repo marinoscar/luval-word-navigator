@@ -49,6 +49,11 @@ namespace luval.word.navigator.terminal
             return res;
         }
 
+        public void WithDocParragraph(Document doc, Paragraph paragraph, DocumentData docData)
+        {
+
+        }
+
         public int GetImageCount(Document doc)
         {
             var count = 0;
@@ -114,6 +119,7 @@ namespace luval.word.navigator.terminal
             }
             return res;
         }
+
 
         public string GetSystems(Document doc)
         {
