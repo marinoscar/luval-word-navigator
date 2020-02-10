@@ -51,6 +51,7 @@
     <Compile Include="DocumentData.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RegExResult.cs" />
     <Compile Include="SearchResult.cs" />
     <Compile Include="WordDocument.cs" />
   </ItemGroup>

@@ -42,8 +42,8 @@ namespace luval.word.navigator.terminal
                     FileName = DocumentFile.Name,
                     ImageCount = GetImageCount(doc),
                     Frequency = GetFrequency(doc),
-                    Country = GetCountry(doc)
-
+                    Country = GetCountry(doc),
+                    SAPTransactionCodes = FindTCodes(doc)
                 };
             });
             return res;
@@ -145,6 +145,50 @@ namespace luval.word.navigator.terminal
         private string CleanString(string value)
         {
             return value.Trim().Replace("\n\r", ";").Replace("\r\n", ";").Replace("\n", ";").Replace("\r", ";").Replace(";;", ";");
+        }
+
+        public string FindTCodes(Document doc)
+        {
+            const string pattern = "T*.(-|_| )*CODE";
+            var tcodes = new List<string>();
+            //T-Codes cannnot be more than 20 characters long
+            foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
+            {
+                var result = FindTextInParragraph(pa, pattern);
+                if(result != null && result.Result.Success)
+                {
+                    tcodes.Add(ExtractTCodeFromText(result));
+                }
+
+            }
+            return string.Join(";", tcodes.Distinct().ToList());
+        }
+
+        private string ExtractTCodeFromText(RegExResult result)
+        {
+            var subs = CleanString(result.Input.Remove(0, result.Result.Index + result.Result.Length).ToUpperInvariant());
+            return GetWords(subs).FirstOrDefault();
+        }
+
+        private string CleanText(string text)
+        {
+            //remove duplicate spaces
+            RegexOptions options = RegexOptions.None;
+            Regex regex = new Regex("[ ]{2,}", options);
+            text = regex.Replace(text, " ");
+            return text.Replace(";", "").Replace(":", "").Replace(".", "").Replace(",", "");
+        }
+
+        private List<string> GetWords(string text)
+        {
+            return Regex.Matches(text, @"\b[\w']*\b").Cast<Match>().Where(i => i.Success).Select(i => i.Value).ToList();
+        }
+
+        public RegExResult FindTextInParragraph(Paragraph paragraph, string pattern)
+        {
+            paragraph.Range.Select();
+            var result = Regex.Match(paragraph.Range.Text.ToUpperInvariant(), pattern);
+            return new RegExResult() { Input = paragraph.Range.Text, Result = result };
         }
 
         public string FindTextBetweenHeadings(Document doc, string pattern, string styleStart, string styleEnd)
