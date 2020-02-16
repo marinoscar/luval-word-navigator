@@ -43,8 +43,8 @@ namespace luval.word.navigator.terminal
                     ImageCount = GetImageCount(doc),
                     Frequency = GetFrequency(doc),
                     Country = GetCountry(doc),
-                    SAPTransactionCodes = FindTCodes(doc)
                 };
+                DoRegExSearches(doc, res);
             });
             return res;
         }
@@ -144,12 +144,68 @@ namespace luval.word.navigator.terminal
 
         private string CleanString(string value)
         {
-            return value.Trim().Replace("\n\r", ";").Replace("\r\n", ";").Replace("\n", ";").Replace("\r", ";").Replace(";;", ";");
+            return value.Trim().Replace("\n\r", ";")
+                .Replace("\r\n", ";")
+                .Replace("\n", ";")
+                .Replace("\r", ";")
+                .Replace(";;", ";")
+                .Replace("-", "")
+                .Replace("_", "")
+                .Replace("\t", "")
+                .Replace("  ", " ")
+                .Replace("   ", " ")
+                .Replace("   ", " ")
+                .Replace("   ", " ");
         }
 
-        public string FindTCodes(Document doc)
+        public string GetURL(Document doc)
         {
-            const string pattern = "T*.(-|_| )*CODE";
+            const string pattern = @"(?:vnc|s3|ssh|scp|sftp|ftp|http|https)\:\/\/[\w\.]+(?:\:?\d{0,5})|(?:mailto|)\:[\w\.]+\@[\w\.]+";
+            var urls = new List<string>();
+            //T-Codes cannnot be more than 20 characters long
+            foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
+            {
+                var result = FindTextInParragraph(pa, pattern);
+                if (result != null && result.Result.Success)
+                {
+                    urls.Add(result.Result.Value);
+                }
+            }
+            return string.Join(";", urls.Distinct().ToList());
+        }
+
+
+        public void DoRegExSearches(Document doc, DocumentData result)
+        {
+            var urls = new List<string>();
+            var tcodes = new List<string>();
+            const string tcodePattern = @"(\st*.(-|_| )*code\s)|(\stransaction*.(-|_| )*code\s)";
+            const string urlPattern = @"(?:vnc|s3|ssh|scp|sftp|ftp|http|https)\:\/\/[\w\.]+(?:\:?\d{0,5})|(?:mailto|)\:[\w\.]+\@[\w\.]+";
+            foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
+            {
+                FindTCodeAndUrls(pa, tcodePattern, urlPattern, tcodes, urls);
+            }
+            result.SAPTransactionCodes = string.Join(";", tcodes.Distinct());
+            result.Urls = string.Join(";", urls.Distinct());
+        }
+
+        public void FindTCodeAndUrls(Paragraph pa, string tcodePattern, string urlPattern, List<string> tcodes, List<string> urls)
+        {
+            var tcodeResult = FindTextInParragraph(pa, tcodePattern);
+            if (tcodeResult != null && tcodeResult.Result.Success)
+            {
+                tcodes.Add(ExtractTCodeFromText(tcodeResult));
+            }
+            var urlResult = FindTextInParragraph(pa, urlPattern);
+            if (urlResult != null && urlResult.Result.Success)
+            {
+                urls.Add(urlResult.Result.Value);
+            }
+        }
+
+        public string GetTCodes(Document doc)
+        {
+            const string pattern = @"(\st*.(-|_| )*code\s)|(\stransaction*.(-|_| )*code\s)";
             var tcodes = new List<string>();
             //T-Codes cannnot be more than 20 characters long
             foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
@@ -166,7 +222,7 @@ namespace luval.word.navigator.terminal
 
         private string ExtractTCodeFromText(RegExResult result)
         {
-            var subs = CleanString(result.Input.Remove(0, result.Result.Index + result.Result.Length).ToUpperInvariant());
+            var subs = CleanString(result.Input.Remove(0, result.Result.Index + result.Result.Length));
             return GetWords(subs).FirstOrDefault();
         }
 
@@ -187,7 +243,7 @@ namespace luval.word.navigator.terminal
         public RegExResult FindTextInParragraph(Paragraph paragraph, string pattern)
         {
             paragraph.Range.Select();
-            var result = Regex.Match(paragraph.Range.Text.ToUpperInvariant(), pattern);
+            var result = Regex.Match(paragraph.Range.Text, pattern, RegexOptions.IgnoreCase);
             return new RegExResult() { Input = paragraph.Range.Text, Result = result };
         }
 

@@ -18,7 +18,7 @@ namespace luval.word.navigator.terminal
             Console.WriteLine("Reading files from {0}", arguments.DocumentDir.FullName);
             DoExecute(() =>
             {
-                var files = arguments.DocumentDir.GetFiles("*.doc*", SearchOption.AllDirectories).ToList();
+                var files = arguments.DocumentDir.GetFiles("*.doc*", SearchOption.AllDirectories).Where(i => !i.Name.StartsWith("~")).ToList();
                 var stats = new List<DocumentData>();
                 foreach (var file in files)
                 {

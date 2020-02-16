@@ -18,6 +18,7 @@ namespace luval.word.navigator.terminal
         public string ExceptionHandling { get; set; }
         public string SAPTransactionCodes { get; set; }
         public string SAPVariants { get; set; }
+        public string Urls { get; set; }
 
     }
 }
