@@ -10,6 +10,6 @@ namespace luval.word.navigator.terminal
     public class RegExResult
     {
         public string Input { get; set; }
-        public Match Result { get; set; }
+        public List<Match> Result { get; set; }
     }
 }

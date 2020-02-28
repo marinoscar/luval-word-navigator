@@ -36,6 +36,7 @@ namespace luval.word.navigator.terminal
             var res = new DocumentData();
             ProcessDocument((doc) =>
             {
+                var regExRes = DoRegExSearches(doc);
                 res = new DocumentData()
                 {
                     Systems = GetSystems(doc),
@@ -43,8 +44,9 @@ namespace luval.word.navigator.terminal
                     ImageCount = GetImageCount(doc),
                     Frequency = GetFrequency(doc),
                     Country = GetCountry(doc),
+                    Urls = regExRes.Urls,
+                    SAPTransactionCodes = regExRes.SAPTransactionCodes
                 };
-                DoRegExSearches(doc, res);
             });
             return res;
         }
@@ -158,72 +160,43 @@ namespace luval.word.navigator.terminal
                 .Replace("   ", " ");
         }
 
-        public string GetURL(Document doc)
-        {
-            const string pattern = @"(?:vnc|s3|ssh|scp|sftp|ftp|http|https)\:\/\/[\w\.]+(?:\:?\d{0,5})|(?:mailto|)\:[\w\.]+\@[\w\.]+";
-            var urls = new List<string>();
-            //T-Codes cannnot be more than 20 characters long
-            foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
-            {
-                var result = FindTextInParragraph(pa, pattern);
-                if (result != null && result.Result.Success)
-                {
-                    urls.Add(result.Result.Value);
-                }
-            }
-            return string.Join(";", urls.Distinct().ToList());
-        }
-
-
-        public void DoRegExSearches(Document doc, DocumentData result)
+        public DocumentData DoRegExSearches(Document doc)
         {
             var urls = new List<string>();
             var tcodes = new List<string>();
             const string tcodePattern = @"(\st*.(-|_| )*code\s)|(\stransaction*.(-|_| )*code\s)";
             const string urlPattern = @"(?:vnc|s3|ssh|scp|sftp|ftp|http|https)\:\/\/[\w\.]+(?:\:?\d{0,5})|(?:mailto|)\:[\w\.]+\@[\w\.]+";
-            foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
-            {
-                FindTCodeAndUrls(pa, tcodePattern, urlPattern, tcodes, urls);
-            }
-            result.SAPTransactionCodes = string.Join(";", tcodes.Distinct());
-            result.Urls = string.Join(";", urls.Distinct());
+            
+            FindTCodeAndUrls(doc.Content.Text, tcodePattern, urlPattern, tcodes, urls);
+            return new DocumentData() {
+                SAPTransactionCodes = string.Join(";", tcodes.Distinct()),
+                Urls = string.Join(";", urls.Distinct())
+            };
         }
 
-        public void FindTCodeAndUrls(Paragraph pa, string tcodePattern, string urlPattern, List<string> tcodes, List<string> urls)
+        public void FindTCodeAndUrls(string text, string tcodePattern, string urlPattern, List<string> tcodes, List<string> urls)
         {
-            var tcodeResult = FindTextInParragraph(pa, tcodePattern);
-            if (tcodeResult != null && tcodeResult.Result.Success)
+            var tcodeResult = FindTextInParragraph(text, tcodePattern);
+            if (tcodeResult != null && tcodeResult.Result.Any(i => i.Success))
             {
-                tcodes.Add(ExtractTCodeFromText(tcodeResult));
+                tcodes.AddRange(ExtractTCodeFromText(tcodeResult));
             }
-            var urlResult = FindTextInParragraph(pa, urlPattern);
-            if (urlResult != null && urlResult.Result.Success)
+            var urlResult = FindTextInParragraph(text, urlPattern);
+            if (urlResult != null && urlResult.Result.Any(i => i.Success))
             {
-                urls.Add(urlResult.Result.Value);
+                urls.AddRange(urlResult.Result.Select(i => i.Value));
             }
         }
 
-        public string GetTCodes(Document doc)
+        private List<string> ExtractTCodeFromText(RegExResult result)
         {
-            const string pattern = @"(\st*.(-|_| )*code\s)|(\stransaction*.(-|_| )*code\s)";
-            var tcodes = new List<string>();
-            //T-Codes cannnot be more than 20 characters long
-            foreach (var pa in doc.Paragraphs.Cast<Paragraph>().ToList())
+            var res = new List<string>();
+            foreach(var r in result.Result)
             {
-                var result = FindTextInParragraph(pa, pattern);
-                if(result != null && result.Result.Success)
-                {
-                    tcodes.Add(ExtractTCodeFromText(result));
-                }
-
+                var sub = CleanString(result.Input.Substring(r.Index + r.Length, 75));
+                res.Add(GetWords(sub).FirstOrDefault());
             }
-            return string.Join(";", tcodes.Distinct().ToList());
-        }
-
-        private string ExtractTCodeFromText(RegExResult result)
-        {
-            var subs = CleanString(result.Input.Remove(0, result.Result.Index + result.Result.Length));
-            return GetWords(subs).FirstOrDefault();
+            return res;
         }
 
         private string CleanText(string text)
@@ -243,8 +216,14 @@ namespace luval.word.navigator.terminal
         public RegExResult FindTextInParragraph(Paragraph paragraph, string pattern)
         {
             paragraph.Range.Select();
-            var result = Regex.Match(paragraph.Range.Text, pattern, RegexOptions.IgnoreCase);
-            return new RegExResult() { Input = paragraph.Range.Text, Result = result };
+            var result = Regex.Matches(paragraph.Range.Text, pattern, RegexOptions.IgnoreCase);
+            return new RegExResult() { Input = paragraph.Range.Text, Result = result.Cast<Match>().ToList() };
+        }
+
+        public RegExResult FindTextInParragraph(string text, string pattern)
+        {
+            var result = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+            return new RegExResult() { Input = text, Result = result.Cast<Match>().ToList() };
         }
 
         public string FindTextBetweenHeadings(Document doc, string pattern, string styleStart, string styleEnd)

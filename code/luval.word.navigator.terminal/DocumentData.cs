@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace luval.word.navigator.terminal
 {
-    public class DocumentData
+    public struct DocumentData
     {
         public string FileName { get; set; }
         public string Systems { get; set; }

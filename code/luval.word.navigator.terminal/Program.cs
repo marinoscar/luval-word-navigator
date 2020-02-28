@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,15 +20,33 @@ namespace luval.word.navigator.terminal
             DoExecute(() =>
             {
                 var files = arguments.DocumentDir.GetFiles("*.doc*", SearchOption.AllDirectories).Where(i => !i.Name.StartsWith("~")).ToList();
-                var stats = new List<DocumentData>();
-                foreach (var file in files)
+                var stats = new BlockingCollection<DocumentData>();
+                var tasks = new List<Task>(arguments.ThreadCount);
+                var tcount = 0;
+                for (int f = 0; f < files.Count; f++)
                 {
+                    var file = files[f];
                     Console.WriteLine("File: {0} {1} of {2}", file.Name.PadRight(100), (files.IndexOf(file) + 1).ToString().PadLeft(4), files.Count.ToString().PadLeft(4));
-                    var doc = new WordDocument(file.FullName);
-                    DoExecute(() =>
+                    if (tcount < arguments.ThreadCount)
                     {
-                        stats.Add(doc.GetStats());
-                    });
+                        var t = new Task(() =>
+                        {
+                            var doc = new WordDocument(file.FullName);
+                            DoExecute(() =>
+                            {
+                                stats.Add(doc.GetStats());
+                            });
+                        });
+                        tcount++;
+                        tasks.Add(t);
+                    }
+                    if (tcount >= arguments.ThreadCount || f == (files.Count - 1)) /*is the last file*/
+                    {
+                        tasks.ForEach(t => t.Start());
+                        tcount = 0;
+                        Task.WaitAll(tasks.ToArray());
+                        tasks.Clear();
+                    }
                 }
                 Console.WriteLine();
                 Console.WriteLine();

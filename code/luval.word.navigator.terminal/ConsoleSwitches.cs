@@ -69,5 +69,14 @@ namespace luval.word.navigator.terminal
                 return this["-out"];
             }
         }
+
+        public int ThreadCount
+        {
+            get
+            {
+                if (!ContainsSwitch("-threadCount")) return 5;
+                return Convert.ToInt32(this["-threadCount"]);
+            }
+        }
     }
 }
