@@ -17,6 +17,35 @@ namespace luval.word.navigator.terminal
             var start = DateTime.UtcNow;
             Console.WriteLine("Started At UTC: {0}", start);
             Console.WriteLine("Reading files from {0}", arguments.DocumentDir.FullName);
+
+            ExecuteResultImport();
+
+            ExecuteWordExtraction(arguments);
+
+            Console.WriteLine("Completed. DURATION: {0}", DateTime.UtcNow.Subtract(start));
+            Console.WriteLine("Results saved on: {0}", arguments.OutputFile);
+            Console.WriteLine("Press any key to end");
+            Console.ReadKey();
+        }
+
+        private static void ExecuteResultImport()
+        {
+            DoExecute(() => {
+                var dir = new DirectoryInfo(@"C:\Users\ch489gt\Downloads\BPO-Docs\Results");
+                var files = dir.GetFiles("*.json", SearchOption.AllDirectories);
+                var items = new List<DocumentData>();
+                foreach(var file in files)
+                {
+                    var i = JsonConvert.DeserializeObject<List<DocumentData>>(File.ReadAllText(file.FullName));
+                    items.AddRange(i);
+                }
+                var processor = new ResultProcessor();
+                processor.ImportToDb(items);
+            });
+        }
+
+        private static void ExecuteWordExtraction(ConsoleSwitches arguments)
+        {
             DoExecute(() =>
             {
                 var files = arguments.DocumentDir.GetFiles("*.doc*", SearchOption.AllDirectories).Where(i => !i.Name.StartsWith("~")).ToList();
@@ -52,11 +81,6 @@ namespace luval.word.navigator.terminal
                 Console.WriteLine();
                 File.WriteAllText(arguments.OutputFile, JsonConvert.SerializeObject(stats));
             });
-
-            Console.WriteLine("Completed. DURATION: {0}", DateTime.UtcNow.Subtract(start));
-            Console.WriteLine("Results saved on: {0}", arguments.OutputFile);
-            Console.WriteLine("Press any key to end");
-            Console.ReadKey();
         }
 
         private static string GetRegion(string fileName)
