@@ -18,7 +18,7 @@ namespace luval.word.navigator.terminal
             Console.WriteLine("Started At UTC: {0}", start);
             Console.WriteLine("Reading files from {0}", arguments.DocumentDir.FullName);
 
-            ExecuteResultImport();
+            //ExecuteResultImport();
 
             ExecuteWordExtraction(arguments);
 
@@ -79,7 +79,7 @@ namespace luval.word.navigator.terminal
                 }
                 Console.WriteLine();
                 Console.WriteLine();
-                File.WriteAllText(arguments.OutputFile, JsonConvert.SerializeObject(stats));
+              File.WriteAllText(arguments.OutputFile, JsonConvert.SerializeObject(stats));
             });
         }
 
